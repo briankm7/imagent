@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>imagent</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>imagent</h1>
+    <span id="modo" class="pildora"></span>
+  </header>
+
+  <main>
+    <section id="galeria-panel">
+      <div id="soltar" class="soltar">
+        Arrastra imagenes aqui
+        <input type="file" id="fichero" accept="image/*" multiple hidden>
+        <button type="button" id="examinar">o elige ficheros</button>
+      </div>
+      <ul id="galeria"></ul>
+    </section>
+
+    <section id="chat-panel">
+      <div id="mensajes"></div>
+      <form id="formulario">
+        <input id="entrada" autocomplete="off" placeholder="Pregunta algo sobre las imagenes...">
+        <button type="submit">Enviar</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

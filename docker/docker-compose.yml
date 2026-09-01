@@ -1,0 +1,47 @@
+# Levanta la aplicacion con Qdrant.
+#
+#   docker compose -f docker/docker-compose.yml up --build
+#
+# Por defecto arranca en modo fake: sin API keys, con el escenario de
+# demostracion cargado y usando Qdrant de verdad como almacen de vectores. Para
+# hablar con Gemini, exporta IMAGENT_GOOGLE_API_KEY y pon IMAGENT_PROVIDER_MODE=gemini.
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant:/qdrant/storage
+    healthcheck:
+      # La aplicacion no arranca hasta que Qdrant responde: si no, el primer
+      # ensure_ready fallaria y la imagen quedaria sin indexar.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/6333 && echo -e 'GET /readyz HTTP/1.1\\nhost: 127.0.0.1\\n\\n' >&3 && head -1 <&3 | grep 200"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    environment:
+      IMAGENT_PROVIDER_MODE: ${IMAGENT_PROVIDER_MODE:-fake}
+      IMAGENT_VECTOR_STORE_MODE: qdrant
+      IMAGENT_REPOSITORY_MODE: sqlite
+      IMAGENT_QDRANT_URL: http://qdrant:6333
+      IMAGENT_GOOGLE_API_KEY: ${IMAGENT_GOOGLE_API_KEY:-}
+      IMAGENT_LOG_LEVEL: INFO
+    volumes:
+      # Los bytes de las imagenes y el sqlite del checkpointer. Sin esto, cada
+      # recreacion del contenedor perderia la coleccion y las conversaciones.
+      - datos:/data
+
+volumes:
+  qdrant:
+  datos:

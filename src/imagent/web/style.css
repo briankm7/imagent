@@ -1,0 +1,87 @@
+:root {
+  --fondo: #14161a;
+  --panel: #1c1f26;
+  --borde: #2b303b;
+  --texto: #e6e8ec;
+  --suave: #9aa3b2;
+  --acento: #6ea8fe;
+  --aviso: #f0b429;
+  --error: #f05c5c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+header {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .9rem 1.25rem; border-bottom: 1px solid var(--borde);
+}
+header h1 { margin: 0; font-size: 1.1rem; letter-spacing: .02em; }
+
+.pildora {
+  font-size: .75rem; padding: .15rem .5rem; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--borde); color: var(--suave);
+}
+
+main {
+  display: grid; grid-template-columns: 320px 1fr; gap: 1rem;
+  padding: 1rem; height: calc(100vh - 57px);
+}
+@media (max-width: 800px) { main { grid-template-columns: 1fr; height: auto; } }
+
+section {
+  background: var(--panel); border: 1px solid var(--borde);
+  border-radius: 10px; padding: 1rem; overflow: auto;
+}
+
+.soltar {
+  border: 1px dashed var(--borde); border-radius: 8px;
+  padding: 1.25rem; text-align: center; color: var(--suave);
+}
+.soltar.encima { border-color: var(--acento); color: var(--acento); }
+.soltar button {
+  display: block; margin: .6rem auto 0; background: none; cursor: pointer;
+  border: 1px solid var(--borde); color: var(--texto);
+  border-radius: 6px; padding: .3rem .7rem; font-size: .85rem;
+}
+
+#galeria { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .5rem; }
+#galeria li {
+  display: flex; gap: .6rem; align-items: center;
+  border: 1px solid var(--borde); border-radius: 8px; padding: .4rem;
+}
+#galeria img { width: 44px; height: 44px; object-fit: cover; border-radius: 5px; background: #000; }
+#galeria .nombre { font-size: .85rem; }
+#galeria .desc { font-size: .75rem; color: var(--suave); }
+#galeria li.fallida { border-color: var(--error); }
+
+#chat-panel { display: flex; flex-direction: column; }
+#mensajes { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: .75rem; }
+
+.msg { max-width: 80%; padding: .6rem .8rem; border-radius: 10px; white-space: pre-wrap; }
+.msg.yo { align-self: flex-end; background: #2a3446; }
+.msg.agente { align-self: flex-start; background: #232833; border: 1px solid var(--borde); }
+.msg.error { border-color: var(--error); color: var(--error); }
+
+.avisos { margin-top: .5rem; font-size: .75rem; color: var(--aviso); white-space: pre-wrap; }
+.incompleta {
+  margin-top: .4rem; font-size: .75rem; color: var(--aviso);
+  border-top: 1px solid var(--borde); padding-top: .4rem;
+}
+
+#formulario { display: flex; gap: .5rem; margin-top: .75rem; }
+#entrada {
+  flex: 1; background: #12151b; border: 1px solid var(--borde);
+  color: var(--texto); border-radius: 8px; padding: .55rem .7rem;
+}
+#formulario button {
+  background: var(--acento); color: #0d1117; border: 0; cursor: pointer;
+  border-radius: 8px; padding: .55rem 1rem; font-weight: 600;
+}
+#formulario button:disabled { opacity: .5; cursor: default; }

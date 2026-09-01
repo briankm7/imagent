@@ -1,0 +1,93 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "imagent"
+version = "0.1.0"
+description = "Agente multimodal con memoria: indexa imagenes y responde preguntas en lenguaje natural"
+readme = "README.md"
+requires-python = ">=3.12"
+
+# Dependencias base: TODO el proyecto arranca y se testea solo con esto.
+# Ni SDK de modelos ni cliente de base de datos. Ver [project.optional-dependencies].
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "python-multipart>=0.0.12",
+    "langgraph>=0.2.50",
+    "langchain-core>=0.3",
+    # Checkpointer de runtime (decision D8-B). Es sqlite, no un servicio: no
+    # rompe el requisito de arrancar sin base de datos.
+    "langgraph-checkpoint-sqlite>=2.0",
+]
+
+[project.optional-dependencies]
+# Solo se instalan si vas a hablar con el mundo real.
+gemini = ["google-genai>=0.8"]
+qdrant = ["qdrant-client>=1.12"]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "httpx>=0.27",
+    "ruff>=0.8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/imagent"]
+
+# --------------------------------------------------------------------------
+# ruff
+# --------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle
+    "F",     # pyflakes
+    "W",     # warnings
+    "I",     # isort (orden de imports)
+    "UP",    # pyupgrade (sintaxis moderna de Python)
+    "B",     # flake8-bugbear (trampas clasicas)
+    "SIM",   # flake8-simplify
+    "C4",    # comprehensions
+    "RUF",   # reglas propias de ruff
+    "TID",   # imports relativos controlados
+    "PTH",   # usa pathlib en vez de os.path
+    "ARG",   # argumentos sin usar
+    "ASYNC", # await bloqueantes
+]
+# E501 lo gestiona el formateador; mantenerlo activo solo produce ruido
+# en los casos que el formateador no puede partir (strings largos, URLs).
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ARG001", "ARG002"]  # las fixtures se inyectan y a veces no se usan
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# --------------------------------------------------------------------------
+# pytest
+# --------------------------------------------------------------------------
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers --strict-config"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: recorre el grafo completo con proveedores fake",
+    "requires_network: NO se ejecuta en CI; necesita claves reales",
+]
+
+[tool.coverage.run]
+source = ["src/imagent"]
+branch = true
