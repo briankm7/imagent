@@ -71,7 +71,9 @@ ignore = ["E501"]
 ban-relative-imports = "parents"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ARG001", "ARG002"]  # las fixtures se inyectan y a veces no se usan
+# Las fixtures se inyectan y a veces no se usan; y los dobles de prueba tienen
+# que respetar firmas que no llegan a usar entera.
+"tests/**" = ["ARG001", "ARG002", "ARG005"]
 
 [tool.ruff.format]
 docstring-code-format = true
