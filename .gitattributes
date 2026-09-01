@@ -1,0 +1,13 @@
+# Normaliza los finales de linea: LF en el repositorio, siempre.
+#
+# Sin esto, un repo escrito en Windows guarda CRLF y el CI de Linux se encuentra
+# ficheros con \r al final. En Python casi nunca importa; en un fichero que se
+# copia dentro de una imagen Docker, si.
+* text=auto eol=lf
+
+# Binarios que nunca se deben tocar
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.sqlite binary
