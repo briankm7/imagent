@@ -125,6 +125,7 @@ def route(
     decision: CoordinatorDecision | None,
     budget: Budget,
     queries_done: Collection[str],
+    has_evidence: bool = False,
 ) -> RoutingOutcome:
     """Decide el siguiente paso del grafo.
 
@@ -150,7 +151,15 @@ def route(
     if decision.action is Route.VISION:
         return _route_vision(decision, budget)
 
-    # 3. El coordinador quiere responder. `sufficient` distingue una respuesta
+    # 3. Guarda contra una afirmacion que el coordinador no puede sostener: dice
+    #    que le basta la evidencia sin haber recogido ninguna ni haber buscado
+    #    una sola vez. Visto contra un modelo real: respondia "no dispongo de
+    #    informacion" y la respuesta salia marcada como COMPLETA, que es la peor
+    #    combinacion posible. En vez de creerselo se le manda a hacer lo barato.
+    if decision.sufficient and not has_evidence and not queries_done:
+        return RoutingOutcome(Route.RETRIEVE)
+
+    # 4. El coordinador quiere responder. `sufficient` distingue una respuesta
     #    normal de una en la que se rinde sabiendo que le falta informacion.
     if decision.sufficient:
         return RoutingOutcome(Route.RESPOND)

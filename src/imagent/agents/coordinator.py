@@ -82,6 +82,7 @@ class CoordinatorAgent:
             decision=decision,
             budget=presupuesto,
             queries_done=state["queries_done"],
+            has_evidence=bool(state["retrieved"] or state["vision_findings"]),
         )
 
         return {

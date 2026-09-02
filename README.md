@@ -34,9 +34,11 @@ queremos que lo parezca.
 
 Se puede ejecutar entero con proveedores de verdad a coste cero:
 
-- **Gemini** tiene capa gratuita con una clave de Google AI Studio. Hay limites
-  de peticiones por minuto y por dia, y cambian: mira la pagina de precios
-  vigente antes de fiarte de un numero.
+- **Gemini** tiene capa gratuita con una clave de Google AI Studio. Medido el
+  2 de septiembre de 2026 contra `gemini-3.6-flash`: **20 peticiones al dia**.
+  Da para probar el sistema, no para usarlo a diario — una sola pregunta que
+  escale a vision se lleva media docena. Los limites cambian; comprueba la
+  pagina vigente.
 - **Qdrant** en local con Docker no cuesta nada.
 - SQLite, disco y checkpointer no cuestan nada nunca.
 
@@ -243,11 +245,20 @@ que la segunda vez fuese barata, a cambio de meter salida de un modelo en el
 **Sin verificador de fundamentación.** Nada comprueba que la respuesta redactada
 se apoye de verdad en la evidencia recuperada.
 
-**Los adaptadores reales no se han ejecutado contra las APIs vivas.** Sus
-firmas se comprobaron instalando los SDK, y el test de conformidad verifica su
-forma en CI, pero eso no es lo mismo que haberlos visto funcionar.
-`python -m imagent.check` existe justamente para cerrar ese hueco cuando tengas
-una clave.
+**Qdrant no se ha ejecutado contra un servidor real.** El adaptador de Gemini
+si: `imagent.check` y una prueba de punta a punta pasaron el 2 de septiembre de
+2026. El de Qdrant solo tiene los tests que verifican la llamada que construye.
+
+**Los modelos que razonan son lentos.** Contra `gemini-3.6-flash`, una decision
+del coordinador con el catalogo y la evidencia delante puede pasar de 15 s, y un
+turno con tres vueltas se va de un minuto. Los timeouts por defecto (45 s) estan
+puestos para eso. La palanca para mejorarlo no es bajarlos —eso solo convierte
+lentitud en degradacion— sino `thinking_config` en el adaptador de Gemini, que
+esta sin probar por falta de cuota.
+
+**Los nombres de modelo caducan.** `gemini-2.5-flash` dejo de estar disponible
+para cuentas nuevas y hubo que cambiarlo. Por eso son configuracion y no
+constantes, y por eso existe `imagent.check`.
 
 **No hay type checker.** `Protocol` es tipado estructural que verifica un
 verificador estático, y aquí no se ejecuta mypy. Lo sustituye un test de

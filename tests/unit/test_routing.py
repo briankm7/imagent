@@ -49,11 +49,13 @@ def enrutar(
     *,
     budget: Budget | None = None,
     queries_done: list[str] | None = None,
+    has_evidence: bool = True,
 ) -> RoutingOutcome:
     return route(
         decision=decision,
         budget=budget or presupuesto(),
         queries_done=queries_done or [],
+        has_evidence=has_evidence,
     )
 
 
@@ -200,10 +202,48 @@ def test_sin_candidatas_manda_esa_razon_aunque_tampoco_haya_presupuesto() -> Non
 # Responder
 # ---------------------------------------------------------------------------
 def test_responder_con_evidencia_suficiente_no_marca_nada() -> None:
-    resultado = enrutar(plan(Route.RESPOND, sufficient=True))
+    resultado = enrutar(plan(Route.RESPOND, sufficient=True), has_evidence=True)
 
     assert resultado.route is Route.RESPOND
     assert resultado.incomplete is False
+
+
+def test_decir_que_basta_sin_tener_nada_manda_a_buscar() -> None:
+    """La guarda contra una afirmacion que el coordinador no puede sostener.
+
+    Visto contra un modelo real: decia que le bastaba la evidencia sin haber
+    recogido ninguna, y el redactor contestaba "no dispongo de informacion" con
+    la respuesta marcada como COMPLETA. Es la peor combinacion posible, porque
+    el usuario no tiene forma de saber que el sistema no lo intento.
+    """
+    resultado = enrutar(
+        plan(Route.RESPOND, sufficient=True, query="hay coches"),
+        has_evidence=False,
+        queries_done=[],
+    )
+
+    assert resultado.route is Route.RETRIEVE
+
+
+def test_tras_una_busqueda_vacia_si_se_responde() -> None:
+    """La guarda no puede convertirse en un bucle: si ya se busco y no habia
+    nada, insistir no va a cambiarlo."""
+    resultado = enrutar(
+        plan(Route.RESPOND, sufficient=True),
+        has_evidence=False,
+        queries_done=["coches"],
+    )
+
+    assert resultado.route is Route.RESPOND
+
+
+def test_rendirse_sin_evidencia_no_se_reintenta() -> None:
+    """La guarda solo corrige a quien AFIRMA que le basta. Quien admite que no
+    le basta ya esta diciendo la verdad."""
+    resultado = enrutar(plan(Route.RESPOND, sufficient=False), has_evidence=False)
+
+    assert resultado.route is Route.RESPOND
+    assert resultado.incomplete_reason is IncompleteReason.NO_EVIDENCE
 
 
 def test_rendirse_marca_la_respuesta_como_incompleta() -> None:

@@ -314,10 +314,13 @@ async def test_la_evidencia_no_se_arrastra_entre_turnos() -> None:
     texto.queue_completions("Segunda.")
 
     await conversacion.ask(thread_id="hilo", question="¿coches?")
+    llamadas_del_primer_turno = len(texto.structured_calls)
     await conversacion.ask(thread_id="hilo", question="¿otra cosa?")
 
-    _, prompt_del_segundo, _ = texto.structured_calls[-1]
-    assert "(no se ha recuperado nada)" in prompt_del_segundo
+    # Se mira la PRIMERA decision del segundo turno: es la que ve el estado tal
+    # como lo dejo el turno anterior.
+    _, primer_prompt_del_segundo, _ = texto.structured_calls[llamadas_del_primer_turno]
+    assert "(no se ha recuperado nada)" in primer_prompt_del_segundo
 
 
 # ---------------------------------------------------------------------------

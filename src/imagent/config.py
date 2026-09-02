@@ -93,15 +93,27 @@ class BudgetSettings(BaseModel):
 
 
 class TimeoutSettings(BaseModel):
-    """Timeout por agente. Distintos porque es distinto quien espera."""
+    """Timeout por agente. Distintos porque es distinto quien espera.
 
-    coordinator_seconds: float = Field(default=15.0, gt=0)
+    Los valores de las llamadas a modelo estaban puestos a ojo y se corrigieron
+    con datos: contra `gemini-3.6-flash`, el coordinador se pasaba de los 15 s
+    originales y degradaba a su plan de reserva en casi todos los turnos. Los
+    modelos que razonan antes de responder tardan mucho mas que una generacion
+    normal, y el prompt del coordinador no es pequeño.
+
+    Consecuencia que hay que asumir: un turno con tres vueltas puede tardar mas
+    de un minuto. Si eso molesta, la palanca no es bajar el timeout -eso solo
+    convierte lentitud en degradacion- sino reducir el esfuerzo de razonamiento
+    del modelo con `thinking_config` en el adaptador.
+    """
+
+    coordinator_seconds: float = Field(default=45.0, gt=0)
     # El usuario esta mirando la pantalla: la recuperacion tiene que ser barata.
     retrieval_seconds: float = Field(default=5.0, gt=0)
     vision_on_demand_seconds: float = Field(default=25.0, gt=0)
     # Nadie espera esto en una peticion interactiva larga; puede permitirse mas.
     vision_ingestion_seconds: float = Field(default=60.0, gt=0)
-    responder_seconds: float = Field(default=20.0, gt=0)
+    responder_seconds: float = Field(default=45.0, gt=0)
 
 
 class Settings(BaseSettings):
@@ -135,8 +147,12 @@ class Settings(BaseSettings):
     # --- Gemini (solo se usa si provider_mode=gemini) ---
     # SecretStr para que la clave no aparezca en un repr, un log ni un traceback.
     google_api_key: SecretStr | None = None
-    vision_model: str = "gemini-2.5-flash"
-    text_model: str = "gemini-2.5-flash"
+    # Verificado contra la API el 2 de septiembre de 2026. Google retira
+    # modelos para cuentas nuevas sin previo aviso -gemini-2.5-flash dejo de
+    # estar disponible-, asi que esto es un valor por defecto, no una promesa:
+    # `python -m imagent.check` es lo que dice si sigue siendo valido.
+    vision_model: str = "gemini-3.6-flash"
+    text_model: str = "gemini-3.6-flash"
     embedding_model: str = "gemini-embedding-001"
     # El fake genera vectores de esta misma dimension, para que el almacen en
     # memoria y Qdrant sean intercambiables sin tocar nada mas.
