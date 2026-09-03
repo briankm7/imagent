@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable
 from typing import Any
 from uuid import UUID
 
@@ -42,9 +43,22 @@ EVENTO_SIN_TIEMPO = "vision.on_demand.out_of_time"
 class VisionAgent:
     """Nodo `vision` del grafo."""
 
-    def __init__(self, providers: Providers, *, timeouts: TimeoutSettings) -> None:
+    def __init__(
+        self,
+        providers: Providers,
+        *,
+        timeouts: TimeoutSettings,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self._providers = providers
         self._timeouts = timeouts
+        # El reloj se inyecta como cualquier otra dependencia externa. Este nodo
+        # LLEVA CUENTAS con el, y una contabilidad no se comprueba cronometrando
+        # la ejecucion real: los margenes que hacen falta para que un test asi
+        # sea estable son mayores que la resolucion del reloj del sistema, asi
+        # que o el test es lento o es inestable. Con un reloj falso que avanza
+        # un paso fijo, se puede afirmar el numero exacto.
+        self._clock = clock
 
     async def __call__(self, state: AgentState) -> dict[str, Any]:
         decision = state["decision"]
@@ -82,7 +96,7 @@ class VisionAgent:
                 # costar una llamada al modelo.
                 continue
 
-            inicio = time.monotonic()
+            inicio = self._clock()
             with degrade_on(
                 (VisionError, StorageError, TimeoutError),
                 event=EVENTO_FALLO,
@@ -93,7 +107,7 @@ class VisionAgent:
             # Se cobra dentro o fuera del `with`: una mirada que fallo por
             # timeout ya ha consumido tiempo real y probablemente una llamada al
             # proveedor. No cobrarla convertiria un fallo en presupuesto gratis.
-            restante = restante.spend_vision(images=1, seconds=time.monotonic() - inicio)
+            restante = restante.spend_vision(images=1, seconds=self._clock() - inicio)
 
         return {
             "vision_findings": [*state["vision_findings"], *hallazgos],

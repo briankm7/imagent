@@ -53,8 +53,35 @@ def estado(
     return {**base, **extra}
 
 
-def agente(providers: Providers, **timeouts: float) -> VisionAgent:
-    return VisionAgent(providers, timeouts=TimeoutSettings(**timeouts))
+class RelojFalso:
+    """Reloj que avanza un paso fijo en cada lectura.
+
+    El agente lee el reloj dos veces por imagen -antes y despues de mirarla- y
+    el paso es uniforme, asi que cada mirada cuesta exactamente `paso`. Eso
+    permite afirmar el numero exacto en vez de un rango, y hace el test
+    instantaneo: sin esto, comprobar la contabilidad del tiempo exige dormir de
+    verdad, y los margenes que hacen falta para que no sea inestable son
+    mayores que la resolucion del reloj del sistema.
+    """
+
+    def __init__(self, paso: float = 0.5) -> None:
+        self.paso = paso
+        self.ahora = 0.0
+
+    def __call__(self) -> float:
+        actual = self.ahora
+        self.ahora += self.paso
+        return actual
+
+
+def agente(
+    providers: Providers, *, reloj: RelojFalso | None = None, **timeouts: float
+) -> VisionAgent:
+    return VisionAgent(
+        providers,
+        timeouts=TimeoutSettings(**timeouts),
+        clock=reloj or RelojFalso(paso=0.0),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -151,61 +178,41 @@ async def test_cada_mirada_gasta_una_imagen_del_presupuesto(escena: Escena) -> N
 
 
 async def test_el_tiempo_de_las_miradas_tambien_se_descuenta(escena: Escena) -> None:
-    """Se comprueba con un proveedor que tarda algo medible.
+    """Con el reloj inyectado se puede afirmar el numero EXACTO.
 
-    Con el fake normal el reloj puede no avanzar entre dos llamadas, y un test
-    que asegurase "ha bajado" seria inestable por motivos que no tienen nada que
-    ver con lo que se quiere probar.
+    Dos imagenes a 0,5 s cada una: 1 s justo. La version anterior de este test
+    dormia de verdad y fallaba una de cada cinco ejecuciones, porque el margen
+    que comprobaba era menor que la resolucion del reloj del sistema.
     """
-
-    class VisionConLatencia(FakeVisionProvider):
-        async def answer_about(self, image: ImageBlob, question: str) -> str:
-            await asyncio.sleep(0.05)
-            return await super().answer_about(image, question)
-
-    providers = montar_providers(
-        vision=VisionConLatencia(DEMO_SCRIPTS),
-        repository=escena.repository,
-        blobs=escena.providers.blobs,
-    )
-
-    salida = await agente(providers)(
+    salida = await agente(escena.providers, reloj=RelojFalso(paso=0.5))(
         estado([escena.id("coche"), escena.id("libreta")], budget=presupuesto(segundos=45.0))
     )
 
-    assert salida["budget"].vision_seconds_left <= 45.0 - 0.1
+    assert salida["budget"].vision_seconds_left == 44.0
 
 
 async def test_el_tiempo_agotado_a_mitad_del_lote_para_las_restantes(
     escena: Escena,
 ) -> None:
     """El presupuesto de tiempo es independiente del de imagenes y puede
-    agotarse antes, con imagenes todavia autorizadas."""
+    agotarse antes, con imagenes todavia autorizadas.
 
-    class VisionLenta(FakeVisionProvider):
-        async def answer_about(self, image: ImageBlob, question: str) -> str:
-            await asyncio.sleep(0.3)
-            return await super().answer_about(image, question)
-
-    # Se reutilizan los registros y los bytes ya ingeridos de la escena; solo
-    # se sustituye el proveedor de vision por uno lento.
-    providers = montar_providers(
-        vision=VisionLenta(DEMO_SCRIPTS),
-        repository=escena.repository,
-        blobs=escena.providers.blobs,
-    )
-
-    salida = await agente(providers)(
+    Tres autorizadas y presupuesto para 1 s. Cada mirada cuesta 0,5 s, asi que
+    entran dos y la tercera se queda fuera POR TIEMPO, con cupo de imagenes aun
+    disponible.
+    """
+    salida = await agente(escena.providers, reloj=RelojFalso(paso=0.5))(
         estado(
             [escena.id("coche"), escena.id("libreta"), escena.id("playa")],
-            budget=presupuesto(imagenes=3, segundos=0.5),
+            budget=presupuesto(imagenes=3, segundos=1.0),
         )
     )
 
-    eventos = [d.event for d in salida["degradations"]]
-    assert EVENTO_SIN_TIEMPO in eventos
-    assert len(salida["vision_findings"]) < 3
+    assert len(salida["vision_findings"]) == 2
+    assert EVENTO_SIN_TIEMPO in [d.event for d in salida["degradations"]]
     assert salida["budget"].can_look is False
+    # Y queda cupo de imagenes sin gastar: lo que corto fue el tiempo.
+    assert salida["budget"].vision_images_left == 1
 
 
 # ---------------------------------------------------------------------------
