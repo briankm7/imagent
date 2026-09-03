@@ -1,0 +1,5 @@
+# Copia a terraform.tfvars y rellena. terraform.tfvars esta en .gitignore.
+
+correo_de_avisos = "tu-correo@ejemplo.com"
+limite_mensual   = 5
+moneda           = "USD"
