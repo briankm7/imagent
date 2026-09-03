@@ -6,20 +6,46 @@
 # demostracion cargado y usando Qdrant de verdad como almacen de vectores. Para
 # hablar con Gemini, exporta IMAGENT_GOOGLE_API_KEY y pon IMAGENT_PROVIDER_MODE=gemini.
 
+# Sin esto, el proyecto se llama "docker" porque compose toma el nombre del
+# directorio del fichero. Los contenedores saldrian como docker-app-1.
+name: imagent
+
 services:
   qdrant:
-    image: qdrant/qdrant:v1.12.4
+    # La version del servidor tiene que ir a la par con la del cliente que
+    # instala pyproject (`qdrant-client`). Con v1.12.4 el cliente 1.19 avisaba
+    # de incompatibilidad en cada arranque: "Major versions should match". El
+    # aviso no rompia nada visible, y esa es justo la razon de arreglarlo -un
+    # aviso que se ignora deja de leerse, y el dia que diga algo importante
+    # tampoco se leera.
+    image: qdrant/qdrant:v1.19.0
     ports:
       - "6333:6333"
     volumes:
       - qdrant:/qdrant/storage
     healthcheck:
-      # La aplicacion no arranca hasta que Qdrant responde: si no, el primer
-      # ensure_ready fallaria y la imagen quedaria sin indexar.
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/6333 && echo -e 'GET /readyz HTTP/1.1\\nhost: 127.0.0.1\\n\\n' >&3 && head -1 <&3 | grep 200"]
-      interval: 10s
+      # La aplicacion espera a que Qdrant responda antes de arrancar.
+      #
+      # Se invoca `bash` EXPLICITAMENTE, no `CMD-SHELL`. La primera version usaba
+      # CMD-SHELL, que ejecuta `/bin/sh`, y en esta imagen /bin/sh es dash:
+      # `/dev/tcp` es una extension de bash y dash responde "Directory
+      # nonexistent". El resultado era que Qdrant arrancaba perfectamente pero
+      # se marcaba como unhealthy para siempre, y la aplicacion no llegaba a
+      # arrancar nunca por una dependencia que en realidad estaba lista.
+      #
+      # Se usa /dev/tcp y no curl porque la imagen de Qdrant no trae ni curl ni
+      # wget; bash si.
+      test:
+        - CMD
+        - bash
+        - -c
+        - "exec 3<>/dev/tcp/127.0.0.1/6333 && printf 'GET /readyz HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q '200 OK'"
+      interval: 5s
       timeout: 5s
       retries: 12
+      # Qdrant tarda un par de segundos en escuchar. Sin esto, los primeros
+      # intentos fallan y cuentan como reintentos gastados.
+      start_period: 10s
 
   app:
     build:
